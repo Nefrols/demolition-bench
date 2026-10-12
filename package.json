@@ -2,6 +2,7 @@
   "name": "demolition-bench",
   "version": "1.0.0",
   "private": true,
+  "homepage": "https://nefrols.github.io/demolition-bench/",
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
