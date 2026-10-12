@@ -101,38 +101,44 @@ export class Renderer {
   pause(value) { this.paused = value; cancelAnimationFrame(this.raf); if (!value) this.raf = requestAnimationFrame(this.tick); }
   setWorld(world) {
     this.world = world;
-    for (const s of this.states) { s.solid = world.solid.slice(); s.falling = []; s.ghosts = []; this.rebuild(s); }
+    for (const s of this.states) { s.solid = world.solid.slice(); s.anchors=world.anchors.slice(); s.fresh=new Set(); s.falling = []; s.ghosts = []; this.rebuild(s); }
   }
   position(id) {
     const { nx, nz } = this.world;
     return [id % nx - (nx - 1) / 2, Math.floor(id / (nx*nz)), Math.floor(id / nx) % nz - (nz - 1) / 2];
   }
   rebuild(s) {
-    const { nx, ny, nz, anchors } = this.world, plane = nx*nz, data = [];
+    const { nx, ny, nz } = this.world, anchors=s.anchors, plane = nx*nz, data = [];
     for (let i = 0; i < s.solid.length; i++) {
       if (!s.solid[i]) continue;
       const x = i % nx, y = Math.floor(i / plane), z = Math.floor(i / nx) % nz;
       if (x && x < nx-1 && y && y < ny-1 && z && z < nz-1 && s.solid[i-1] && s.solid[i+1] && s.solid[i-nx] && s.solid[i+nx] && s.solid[i-plane] && s.solid[i+plane]) continue;
-      const c = anchors[i] ? [.93,.67,.32] : (y % 9 < 2 ? [.69,.73,.69] : [.51,.60,.61]);
+      const c = s.fresh.has(i) ? [.39,.88,.7] : anchors[i] ? [.93,.67,.32] : (y % 8 < 2 ? [.69,.73,.69] : [.51,.60,.61]);
       const shade = .92 + ((i*37 % 19)/19)*.12;
       data.push(...this.position(i),...c.map(v => v*shade),.96,.96,.96);
     }
     this.upload(s.static, Float32Array.from(data));
   }
-  apply(frame) {
+  apply(frame, animate=true, rebuild=true) {
     const now = performance.now() / 1000;
     for (let k = 0; k < 2; k++) {
-      const s = this.states[k], detached = k ? frame.actual : frame.expected;
-      for (const id of frame.removed) s.solid[id] = 0;
+      const s = this.states[k], detached = (k ? frame.actual : frame.expected).detached;
+      const e=frame.edit;
+      for(const id of e.remove){s.solid[id]=0;s.anchors[id]=0;}
+      for(const id of e.add)if(!s.solid[id]){s.solid[id]=1;s.anchors[id]=0;}
+      for(const id of e.anchorOff)s.anchors[id]=0;
+      for(const id of e.anchorOn)if(s.solid[id])s.anchors[id]=1;
+      s.fresh=new Set(e.add);
       const errorIds = new Set(k ? frame.extra : []);
       for (const id of detached) if (s.solid[id]) {
         const p = this.position(id);
-        s.falling.push({ p, born: now, error: errorIds.has(id) }); s.solid[id] = 0;
+        if(animate)s.falling.push({ p, born: now, error: errorIds.has(id) }); s.solid[id] = 0;s.anchors[id]=0;
       }
       s.ghosts = k ? frame.missing : [];
-      this.rebuild(s);
+      if(rebuild)this.rebuild(s);
     }
   }
+  seek(world,frames,index){this.setWorld(world);for(let i=0;i<=index;i++)this.apply(frames[i],false,false);for(const s of this.states)this.rebuild(s);}
   draw(batch) { if (!batch.count) return; const gl = this.gl; gl.bindVertexArray(batch.vao); gl.drawArraysInstanced(gl.TRIANGLES,0,36,batch.count); }
   tick(time) {
     if (this.paused) return;
@@ -143,7 +149,9 @@ export class Renderer {
     gl.clearColor(.105,.147,.164,1); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST); gl.enable(gl.CULL_FACE); gl.useProgram(this.program);
     if (this.world) {
       const { nx, ny, nz } = this.world;
-      const distance = Math.max(nx,ny,nz)*1.78, target = [0,ny*.33,0];
+      // Fit the complete bounding sphere to the narrower half viewport.
+      const halfAngle=Math.atan(Math.tan(Math.PI/8)*Math.min(1,w/(2*h)));
+      const distance = Math.hypot(nx,ny,nz)*.54/Math.sin(halfAngle), target = [0,(ny-1)*.5,0];
       const eye = [Math.sin(this.yaw)*Math.cos(this.pitch)*distance,target[1]+Math.sin(this.pitch)*distance,Math.cos(this.yaw)*Math.cos(this.pitch)*distance];
       gl.uniform3fv(this.uEye,eye);
       for (let k = 0; k < 2; k++) {

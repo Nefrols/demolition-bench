@@ -1,0 +1,14 @@
+{
+  "version": "demolition-1.0.0",
+  "files": {
+    "index.html": "f38937b10848593767d6d05099dc25c8cfd1eeaedf75783733b1082e86bb7929",
+    "style.css": "057233f1d63147257be8a4a9bec24f83c1f82000e10a23168a73764fb77625de",
+    "app.js": "6e0a73629ca3a043e7ad97569cfb3fd59ffbfcb02893487651b598aeb4a8569f",
+    "render.js": "54e49e5817408bdebcbcb0b68f3b0b6431509161d5ec190d8fdb5c044f4365f4",
+    "worker.js": "a169b8feeaae97cda7719abcd141011a31b3d931cbb7fffb5928eb592717a5bb",
+    "engine/baseline.js": "c732bb8f6c398126fcca2a6ccc27f49a38f4369878c19faaa85bd8da293ed960",
+    "engine/oracle.js": "4bbc2f91b78b17e47a9b0b1d02060852da896ffecae9ad36318d4ae27390639a",
+    "engine/scenarios.js": "6a8dc0f12b769ef0da8884385bc5f673b9ebfec180b48faeec0e074970eb99ed",
+    "engine/benchmark.js": "0cc5b300a58d7ec7c958d24dd0f131d76dc1ee22979e7d37395dc27446c740a5"
+  }
+}

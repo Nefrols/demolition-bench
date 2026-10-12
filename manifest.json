@@ -1,17 +1,19 @@
 {
-  "version": "demolition-1.0.0",
+  "version": "demolition-2.0.0",
   "files": {
-    "index.html": "f38937b10848593767d6d05099dc25c8cfd1eeaedf75783733b1082e86bb7929",
-    "style.css": "057233f1d63147257be8a4a9bec24f83c1f82000e10a23168a73764fb77625de",
-    "app.js": "6e0a73629ca3a043e7ad97569cfb3fd59ffbfcb02893487651b598aeb4a8569f",
-    "render.js": "54e49e5817408bdebcbcb0b68f3b0b6431509161d5ec190d8fdb5c044f4365f4",
-    "worker.js": "a169b8feeaae97cda7719abcd141011a31b3d931cbb7fffb5928eb592717a5bb",
-    "server.mjs": "0d090b597f3f1652882bc256d6205e21f9a1a9f06c9af1ca81dcffb308238d33",
-    "cli.mjs": "2c89cf8f6081b98038b610c3d92487a785df4215661e9f717d5d5c064c760f59",
+    "index.html": "0cca3f5da9ead6d1661681f2de11433cfe400b5de93255c22ad32c467981660c",
+    "style.css": "096d55ef2681c8a8006f08796edbac8c0ba2209f2c8c49526c9d4dccbb8fe963",
+    "app.js": "bf5d4ba197b35e7ba95fc0537247db88482e1e91c1155fd3099d0f8ee6f65d8e",
+    "reports.js": "203a9bc5720d275d82f08bb214d9bf84b02d69270f8b795b201fa9326ce70f76",
+    "MODEL_PROMPT.md": "050a674e1c31a9cbde8fb544b09898f5fff9788259c8289b5d34c68570b22f71",
+    "render.js": "035c85da3b20ca1ba161c0f16332ca22a210712c6cadc51b1fc501c4d6902f96",
+    "worker.js": "4d56174fdc8fe94671db29f60e9ffb1664ab42bdcc459d1ed4fde6630ed82afc",
+    "server.mjs": "3447c3eccfed9c5b79e423edab6b421a681da353dc18c8ef47b04681eb33f8f0",
+    "cli.mjs": "af2ab8a68948de755c6a3a7ef3fefc1796c2f3d420e53080e9b81ae1c7d89b28",
     "integrity.mjs": "2608a47356ab371509157e71cd4ffc51a2c4475fc23e3203b53c787a52f57048",
-    "engine/baseline.js": "c732bb8f6c398126fcca2a6ccc27f49a38f4369878c19faaa85bd8da293ed960",
-    "engine/oracle.js": "4bbc2f91b78b17e47a9b0b1d02060852da896ffecae9ad36318d4ae27390639a",
-    "engine/scenarios.js": "6a8dc0f12b769ef0da8884385bc5f673b9ebfec180b48faeec0e074970eb99ed",
-    "engine/benchmark.js": "0cc5b300a58d7ec7c958d24dd0f131d76dc1ee22979e7d37395dc27446c740a5"
+    "engine/baseline.js": "57bf95345c316828ce16338431d4ac99942f7ba2cc4173b4b14d6f93a679a3a1",
+    "engine/oracle.js": "d63551f4731438dc7b2406df4dfbfe66fb7a0c06ce493307a560556c3d8f2ec4",
+    "engine/scenarios.js": "bfb2c503a91f01583a112c5e069e04f0fb78cba0daf36b92d367c4d8ad74723c",
+    "engine/benchmark.js": "bf74b3e7cd102c7f7677d3f439545206ceb0cf83942ec6ce7548631a0501edb1"
   }
 }

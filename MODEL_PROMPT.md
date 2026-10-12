@@ -1,6 +1,6 @@
 # Optimize the Demolition Bench solver
 
-You are given a working JavaScript module, `solver.js`, which maintains a voxel structure after destructive edits. Improve its runtime performance while preserving exact correctness.
+You are given a working JavaScript module, `solver.js`, which maintains a voxel structure under transactional destruction, rebuilding, and changes of supports. Improve its runtime performance while preserving exact correctness.
 
 Only submit a replacement for **`solver.js`**. The evaluator, reference implementation, inputs, scoring, and 3D viewer are fixed. You may rewrite the entire module and choose any internal algorithm, data representation, and synchronous optimization. No particular solution method is required.
 
@@ -18,46 +18,69 @@ Only submit a replacement for **`solver.js`**. The evaluator, reference implemen
 
 **Produce one complete, ready-to-run solution in one final response.** Choose optimizations whose correctness you can establish from reasoning alone. Independently review syntax, API compatibility, boundary handling, and persistent state before committing your only submission.
 
-## Required API
+## Required API (V2)
 
 ```js
+export const apiVersion = 2;
 export function createSolver({ nx, ny, nz, solid, anchors }) {
   return {
-    step(removed) {
-      return new Uint32Array(/* all newly unsupported voxel IDs */);
+    step({ remove, add, anchorOff, anchorOn }) {
+      return { detached: new Uint32Array(), components: new Uint32Array() };
     }
   };
 }
 ```
 
-The module must be a self-contained ES module that works in a modern browser Worker and Node.js 20+. Use no external imports, files, network, additional workers, timers, or environment-specific native extensions. Initialization and each step are synchronous. All computation must take place within these calls. Persistent per-instance state is allowed.
+Use a self-contained ES module for a modern browser Worker and Node.js 20+. No imports, files, network, additional workers, timers, native extensions, GPU or asynchronous work. Initialization and steps are synchronous. All input-dependent computation must occur inside these measured calls. Persistent per-instance state is allowed; caches shared between instances, precomputed answers, recognizing benchmark seeds/shapes, and modifying the evaluation environment are forbidden. Ordinary module-level constants and function declarations are allowed. Choose any correct algorithm and data representation.
 
-## Exact semantics
+## Exact state and transaction semantics
 
-- The grid dimensions are positive integers. Voxel ID: `x + nx * (z + nz * y)`. Y is the vertical axis.
-- `solid` and `anchors` are `Uint8Array`s of length `nx * ny * nz`, containing 0 or 1. `solid[id] === 1` means occupied. `anchors[id] === 1` marks a fixed support, initially occupied. Supports may appear anywhere in the grid.
-- These input arrays are private to the solver instance; you may mutate them or create your own copies.
-- `step(removed)` receives a `Uint32Array` of valid in-range IDs. The batch can contain duplicates, already-empty cells, or no entries.
-- First remove all specified voxels simultaneously.
-- A remaining voxel is supported if it has a path through occupied voxels to any remaining anchor, using the six face-adjacent neighbors. Edge and corner contacts do not connect voxels. Grid boundaries do not wrap.
-- Return **every remaining unsupported voxel**, exactly once, in a `Uint32Array`. Order is arbitrary. Directly removed voxels and previously empty cells must not appear in the result.
-- Remove all returned voxels from the solver's state as well; subsequent calls operate on the resulting structure.
-- Anchors can be destroyed. An absent anchor provides no support. Initially floating components must be reported even if the first batch is empty.
-- Returned buffers may be reused after the caller has consumed the result, before the next call.
-- Multiple independent solver instances must work correctly. No future batches are provided to an instance.
+- Dimensions are integers in [1,256], with `nx*ny*nz <= 4194304`. ID is `x + nx * (z + nz * y)`. Coordinates start at zero; Y is vertical.
+- `solid` and `anchors` are `Uint8Array`s of grid size containing 0 or 1. Anchors initially mark occupied cells and may occur anywhere, not just at ground level. Initial floating components are allowed.
+- Input arrays are private mutable copies. Each instance is independent. Future transactions are not provided.
+- All four transaction fields are `Uint32Array`s of valid in-range IDs, and always present. They may be empty, contain duplicates, or refer to empty cells. Transaction arrays are also private copies, so you may mutate them.
+- Apply the following phases in exactly this order, without evaluating connectivity between phases:
+  1. `remove`: erase cells and their anchor flags.
+  2. `add`: occupy absent cells, initially unanchored. Adding an already occupied cell changes nothing, including its anchor flag.
+  3. `anchorOff`: clear anchor flags.
+  4. `anchorOn`: set anchor flags for occupied cells only. Anchoring air has no effect and is not remembered for future additions.
+- After all four phases, an occupied cell is supported iff a path of occupied cells connects it to any anchor through the six face-adjacent neighbors. Edge/corner contacts do not connect. Boundaries never wrap.
+- Identify every unsupported connected component. Return all its IDs exactly once in `detached`; order is arbitrary. Directly removed cells and empty cells are excluded.
+- Return a record for each unsupported component in `components`, defined below. Then erase all detached cells and anchor flags from persistent state before the next step. Detached cells can be explicitly rebuilt in future transactions.
+- Even an empty first transaction must report initially floating cells. After detachment, an empty transaction returns empty arrays.
+- Output arrays must be `Uint32Array`s with exact lengths; backing buffers may be reused after consumption, before the next API call. No asynchronous modification or delayed computation.
 
-This task concerns exact connectivity under deletions. Rendering and the visual animation of falling debris are handled by the evaluator.
+## Exact fragment reductions
 
-## Evaluation
+`components` is a packed flat array of 12 unsigned integers per detached component, in this field order:
 
-Correctness is mandatory on all inputs. Tests include boundary conditions, irregular dimensions, multiple or absent supports, alternative support paths, repeated/empty removals, random structures, and sequences of local and large-scale damage. Correct answers must be computed from the supplied inputs, including unfamiliar seeds and shapes.
+| Offset | Field | Meaning |
+|---|---|---|
+| 0 | minId | Smallest voxel ID in this component; its unique identifier |
+| 1 | count | Number of cells in the component |
+| 2,3,4 | sumX, sumY, sumZ | Exact integer sums of the coordinates of all component cells |
+| 5 | surfaceFaces | Number of unit faces adjacent to air or outside the grid, including enclosed cavities |
+| 6,7,8 | minX, minY, minZ | Inclusive minimum coordinates |
+| 9,10,11 | maxX, maxY, maxZ | Inclusive maximum coordinates |
 
-Performance includes `createSolver` plus all calls to `step`. The evaluator excludes input preparation, oracle computation, checking, rendering, and UI. Both baseline and candidate receive identical scenarios, with warmup and alternating run order. Any invalid answer disqualifies that run from scoring.
+Compute these values **after the transaction but before removing detached cells**. Record order is arbitrary; field order is fixed. One record per component, no duplicates. Every sum fits in uint32 under the stated bounds. No floating-point approximation or hashes as substitutes. Supported components must not appear in either output.
 
-For each performance scenario, compare the median baseline and candidate total time. The geometric mean speedup across scenarios determines the score:
+Example: in a 3x1x1 world with cells 1 and 2 occupied and no anchors, an empty transaction returns `detached = [1,2]` and one record `[1,2,3,0,0,10,1,0,0,2,0,0]`. Two adjacent cubes have ten exposed faces. The next empty step returns two empty arrays.
+
+This is discrete dynamic connectivity and component reduction, not a structural mechanics solver. The fixed viewer animates the answer; you do not implement graphics or debris collisions.
+
+## Evaluation and workload
+
+Correctness is mandatory for any valid input, including unseen seeds, shapes, dimensions, and transaction sequences. Validation covers all returned IDs and every field of every component. Tests include cavities, thin paths, many independent fragments, alternative supports, absent supports, row boundaries, duplicate edits, overlapping phases, and initial floating structures. One wrong answer invalidates the run; there is no score for a fast but incorrect result.
+
+Performance workloads mix sparse and dense 3D structures, local damage and repair, anchor transfers, cuts, reconnection, complete collapse, reconstruction, and no-op transactions. Scales range from tens of thousands to roughly 2.3 million grid cells, across four families. Larger sizes and unseen inputs may be used within the contract. Workloads are online: solve each transaction before receiving the next.
+
+Measured cost includes `createSolver` plus all synchronous `step` calls, including allocation and preparation performed by your implementation. Input copies, oracle computation, validation, rendering, UI, and module import are excluded. Work outside the measured API is forbidden. Both implementations receive identical inputs, with warmup, fresh instances and alternating order. Smaller workloads use the same batch count for baseline and candidate to reduce timer quantization.
+
+For each family/size, the evaluator compares median total runtime across repeated series. Geometric mean speedup across all workloads in a profile determines the score:
 
 `score = 100 * log2(speedup)`
 
-Equal speed gives 0, twice as fast gives +100, twice as slow gives -100. Avoid shifting work outside the measured API or using knowledge of the test generator instead of solving the supplied problem.
+Equal speed gives 0; twice as fast +100; four times as fast +200; twice as slow -100. There is no score cap. Initialization cost, efficient local updates, dense scans, memory access, and component reductions all matter. No particular optimization technique is required. Optimize overall measured performance while preserving the complete contract.
 
 Return only the complete replacement `solver.js` in one JavaScript code block. This single response is your only submission and will be evaluated as delivered, without revisions.

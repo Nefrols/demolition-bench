@@ -1,89 +1,71 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSolver as baseline } from '../engine/baseline.js';
-import { createSolver as candidate } from '../solver.js';
-import { referenceStep, cloneWorld, prepareScenario, checkResult } from '../engine/oracle.js';
-import { makeWorld, edgeCases, makeScenario, random } from '../engine/scenarios.js';
-import { runTrial, benchmark } from '../engine/benchmark.js';
+import {createSolver as baseline} from '../engine/baseline.js';
+import {createSolver as candidate} from '../solver.js';
+import {referenceStep,cloneWorld,prepareScenario,checkResult} from '../engine/oracle.js';
+import {makeWorld,edgeCases,makeScenario,random,edit,FAMILIES} from '../engine/scenarios.js';
+import {runTrial,benchmark} from '../engine/benchmark.js';
+import {validReport,compatible} from '../reports.js';
 
-test('hand-checked unsupported sets and persistent removals', () => {
-  const w = makeWorld(1, 6, 1, () => true);
-  const oracle = cloneWorld(w), solver = baseline(w);
-  for (const [batch, expected] of [[[],[]],[[2],[3,4,5]],[[2,4],[]],[[0],[1]]]) {
-    assert.deepEqual([...referenceStep(oracle,batch)],expected);
-    assert.deepEqual([...solver.step(Uint32Array.from(batch))],expected);
-  }
+test('hand-checked reductions: pair, single voxel, hollow shell',()=>{
+  const cases=[
+    [makeWorld(3,1,1,x=>x>0,()=>false),[1,2],[1,2,3,0,0,10,1,0,0,2,0,0]],
+    [makeWorld(3,3,3,(x,y,z)=>x===1&&y===2&&z===1,()=>false),[22],[22,1,1,2,1,6,1,2,1,1,2,1]],
+    [makeWorld(3,3,3,(x,y,z)=>x!==1||y!==1||z!==1,()=>false),Array.from({length:27},(_,i)=>i).filter(i=>i!==13),[0,26,26,26,26,60,0,0,0,2,2,2]]
+  ];
+  for(const [w,ids,record] of cases)for(const factory of [baseline,candidate]){const s=factory(cloneWorld(w)),a=s.step(edit()),b=referenceStep(cloneWorld(w),edit());assert.deepEqual([...a.detached].sort((a,b)=>a-b),ids);assert.deepEqual([...a.components],record);assert.deepEqual([...b.components],record);assert.equal(s.step(edit()).detached.length,0);}
 });
-
-test('alternate supports, arbitrary support location, and empty first step', () => {
-  const w = makeWorld(3,2,1,(x,y)=>y===1||x!==1);
-  const solver = baseline(w);
-  assert.deepEqual([...solver.step(new Uint32Array([0]))],[]);
-  assert.deepEqual([...solver.step(new Uint32Array([2]))],[3,4,5]);
-  const floating = baseline(makeWorld(2,2,2,()=>true,()=>false));
-  assert.equal(floating.step(new Uint32Array()).length,8);
-  assert.equal(floating.step(new Uint32Array()).length,0);
+test('transaction precedence, no-op add and no remembered anchors in air',()=>{
+  const s=baseline(makeWorld(1,1,1,()=>true));
+  assert.equal(s.step(edit({add:[0]})).detached.length,0);
+  assert.equal(s.step(edit({remove:[0,0],add:[0,0]})).detached.length,1);
+  assert.equal(s.step(edit({anchorOn:[0]})).detached.length,0);
+  assert.equal(s.step(edit({add:[0]})).detached.length,1);
+  assert.equal(s.step(edit({add:[0],anchorOff:[0],anchorOn:[0]})).detached.length,0);
+  assert.equal(s.step(edit({anchorOff:[0]})).detached.length,1);
 });
-
-test('diagonal contacts and row boundaries do not transmit support', () => {
-  const w = makeWorld(2,2,2,(x,y,z)=>(x===1&&y===0&&z===0)||(x===0&&y===1&&z===1));
-  assert.deepEqual([...baseline(w).step(new Uint32Array())],[6]);
-  const row = makeWorld(2,1,2,()=>true,(x,y,z)=>x===1&&z===0);
-  row.solid[0]=0; row.solid[3]=0;
-  assert.deepEqual([...baseline(row).step(new Uint32Array())],[2]);
+test('anchor transfer, split, rebuilding, alternate support and boundaries',()=>{
+  for(const seed of [0,1,42,91871,0xffffffff])for(const s of edgeCases(seed)){const ready=prepareScenario(s);runTrial(baseline,ready);runTrial(candidate,ready);}
 });
-
-test('baseline and candidate match independent oracle across seeds and shapes', () => {
-  for (const seed of [0,1,42,91871,0xffffffff]) for (const scenario of edgeCases(seed)) {
-    const prepared = prepareScenario(scenario);
-    runTrial(baseline,prepared); runTrial(candidate,prepared);
-  }
+test('component buffer grows beyond 256 fragments',()=>{
+  const w=makeWorld(32,4,32,(x,y,z)=>x%2===0&&y%2===0&&z%2===0,()=>false);
+  const expected=referenceStep(cloneWorld(w),edit()),s=baseline(w);
+  assert.equal(expected.components.length/12,512);assert.ok(checkResult(s.step(edit()),expected,4096).ok);
 });
-
-test('model generators have deterministic replay and correct results', () => {
-  for (const kind of ['bridge','tower','lattice']) {
-    const a = makeScenario(kind,1234,true), b = makeScenario(kind,1234,true);
-    assert.deepEqual(a,b);
-    const p = prepareScenario(a); runTrial(candidate,p);
-    assert.ok(p.frames.some(f=>f.expected.length>100));
-  }
+test('generators are deterministic and exercise bulk collapse',()=>{
+  for(const family of FAMILIES){const a=makeScenario(family,1234,'S',8);assert.deepEqual(a,makeScenario(family,1234,'S',8));assert.equal(a.events.length,28);const p=prepareScenario(a);runTrial(candidate,p);assert.ok(p.frames.some(f=>f.expected.detached.length>100));}
 });
-
-test('checker accepts arbitrary order and rejects duplicate, wrong type, extra and missing IDs', () => {
-  assert.equal(checkResult(new Uint32Array([9,2]),new Uint32Array([2,9]),10).ok,true);
-  assert.throws(()=>checkResult(new Uint32Array([2,2]),new Uint32Array([2]),10),/Duplicate/);
-  assert.throws(()=>checkResult([2],new Uint32Array([2]),10),/Uint32Array/);
-  assert.throws(()=>checkResult(new Uint32Array([10]),new Uint32Array(),10),/Out-of-range/);
-  assert.deepEqual(checkResult(new Uint32Array([1,3]),new Uint32Array([1,2]),10),{ok:false,extra:[3],missing:[2]});
+test('checker validates arbitrary order and every component field',()=>{
+  const e=referenceStep(makeWorld(5,1,1,x=>x%2===0,()=>false),edit());
+  const reverse={detached:e.detached.slice().reverse(),components:Uint32Array.from([...e.components.slice(24),...e.components.slice(12,24),...e.components.slice(0,12)])};
+  assert.ok(checkResult(reverse,e,5).ok);
+  for(let k=0;k<12;k++){const a={detached:e.detached,components:e.components.slice()};a.components[k]++;assert.equal(checkResult(a,e,5).ok,false);}
+  assert.throws(()=>checkResult({detached:new Uint32Array([0,0]),components:e.components},e,5),/Duplicate/);
+  assert.throws(()=>checkResult({detached:[0],components:e.components},e,5),/Uint32Array/);
+  assert.throws(()=>checkResult({detached:new Uint32Array([5]),components:e.components},e,5),/Out-of-range/);
+  assert.equal(checkResult({detached:new Uint32Array([1,2,4]),components:e.components},e,5).ok,false);
 });
-
-test('mutating owned inputs does not contaminate later trials or oracle', () => {
-  const scenario = prepareScenario(makeScenario('bridge',42,true));
-  const copy = cloneWorld(scenario.world);
-  const mutating = input => { const solver=baseline(input); input.anchors.fill(0); input.solid.fill(0); return solver; };
-  runTrial(mutating,scenario); runTrial(candidate,scenario);
-  assert.deepEqual(scenario.world,copy);
+test('private mutable inputs cannot contaminate independent trials',()=>{
+  const p=prepareScenario(makeScenario('arcology',42,'S',2)),before=structuredClone(p);
+  runTrial(baseline,p);runTrial(candidate,p);assert.deepEqual(p,before);
 });
-
-test('timing boundaries include factory and steps, exclude validation', () => {
-  const scenario = prepareScenario({id:'tiny',world:makeWorld(1,2,1,()=>true),events:[{removed:new Uint32Array([0])},{removed:new Uint32Array()}]});
-  let t=0;
-  const r=runTrial(candidate,scenario,()=>++t);
-  assert.equal(r.buildMs,1);assert.equal(r.queryMs,2);assert.equal(r.totalMs,3);
+test('timers include factory and steps, exclude checking',()=>{
+  const p=prepareScenario({id:'tiny',world:makeWorld(1,2,1,()=>true),events:[{edit:edit({remove:[0]})},{edit:edit()}]});
+  let t=0;const r=runTrial(candidate,p,()=>++t);assert.equal(r.buildMs,1);assert.equal(r.queryMs,2);assert.equal(r.totalMs,3);
 });
-
-test('wrong solver receives invalid status and no score', async () => {
-  const report=await benchmark(()=>({step:()=>new Uint32Array()}),{repeats:3});
-  assert.equal(report.status,'invalid');assert.equal(report.score,null);assert.equal(report.speedup,null);
+test('wrong solver is invalid with no speedup or score',async()=>{
+  const r=await benchmark(()=>({step:()=>({detached:new Uint32Array(),components:new Uint32Array()})}),{profile:'quick',repeats:3});assert.equal(r.status,'invalid');assert.equal(r.score,null);assert.equal(r.speedup,null);
 });
-
-test('large irregular random deletion sequences stay correct', () => {
+test('random mixed transactions maintain correct persistent state',()=>{
   const rnd=random(76311);
-  const world=makeWorld(17,13,19,()=>rnd()<.75,()=>rnd()<.003);
-  const solver=candidate(cloneWorld(world));
-  for(let i=0;i<80;i++) {
-    const removed=Uint32Array.from({length:10},()=>Math.floor(rnd()*world.solid.length));
-    const expected=referenceStep(world,removed);
-    assert.equal(checkResult(solver.step(removed),expected,world.solid.length).ok,true);
+  for(let seed=0;seed<30;seed++){
+    const w=makeWorld(17,13,19,()=>rnd()<.75,()=>rnd()<.003),s=candidate(cloneWorld(w));
+    const ids=()=>Array.from({length:40},()=>Math.floor(rnd()*w.solid.length));
+    for(let i=0;i<80;i++){const e=edit({remove:ids(),add:ids(),anchorOff:ids(),anchorOn:ids()}),expected=referenceStep(w,e);assert.ok(checkResult(s.step(e),expected,w.solid.length).ok);}
   }
+});
+test('quick profile produces internally consistent portable reports',async()=>{
+  const r=await benchmark(candidate,{profile:'quick',repeats:3});r.candidate='baseline';r.environment={runtime:'test'};assert.equal(r.status,'valid');assert.equal(r.cases.length,8);assert.ok(validReport(r));assert.ok(compatible(r,structuredClone(r)));
+  for(const mutate of [r=>r.score=Infinity,r=>r.score+=1,r=>r.cases[0].candidate.totalMs=-1,r=>r.schema=1,r=>r.cases.push(r.cases[0])]){const bad=structuredClone(r);mutate(bad);assert.equal(validReport(bad),false);}
+  assert.equal(compatible(r,{...r,seed:1}),false);
 });

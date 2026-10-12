@@ -7,7 +7,8 @@ import { verifyIntegrity } from './integrity.mjs';
 
 if (!isMainThread) {
   try {
-    const { createSolver } = await import(`data:text/javascript;base64,${Buffer.from(workerData.source).toString('base64')}`);
+    const { createSolver, apiVersion } = await import(`data:text/javascript;base64,${Buffer.from(workerData.source).toString('base64')}`);
+    if (apiVersion !== 2) throw new Error('Expected apiVersion = 2; V1 solvers use the V1 evaluator.');
     if (typeof createSolver !== 'function') throw new Error('Missing export createSolver');
     const result = await benchmark(createSolver, workerData, p => parentPort.postMessage({ type: 'progress', text: p.text }));
     parentPort.postMessage({ type: 'result', result });
@@ -16,16 +17,17 @@ if (!isMainThread) {
   const args = process.argv.slice(2);
   const option = (key, fallback) => { const i = args.indexOf(key); return i < 0 ? fallback : args[i + 1]; };
   if (args.includes('--help')) {
-    console.log('node cli.mjs --candidate solver.js --seed 314159 --repeats 5 --out result.json --timeout 90');
+    console.log('node cli.mjs --candidate solver.js --profile quick|standard|stress --seed 314159 --repeats 5 --out result.json --timeout 600');
   } else {
     const seed = Number(option('--seed', '314159'));
-    const timeout = Number(option('--timeout', '90'));
+    const timeout = Number(option('--timeout', '600'));
+    const profile = option('--profile', 'standard');
     const repeats = Number(option('--repeats', '5'));
     if (!Number.isInteger(seed) || seed < 0 || seed > 0xffffffff || !Number.isFinite(timeout) || timeout <= 0 || !Number.isInteger(repeats) || repeats < 3 || repeats > 15) throw new Error('Invalid seed, timeout or repeat count');
     await verifyIntegrity();
     const candidatePath = resolve(option('--candidate', 'solver.js'));
     const source = await readFile(candidatePath, 'utf8');
-    const worker = new Worker(new URL(import.meta.url), { workerData: { source, seed, repeats } });
+    const worker = new Worker(new URL(import.meta.url), { workerData: { source, seed, repeats, profile } });
     const timer = setTimeout(() => { console.error('TIMEOUT: candidate exceeded time limit; no score'); worker.terminate(); process.exitCode = 2; }, timeout * 1000);
     worker.on('error', e => { clearTimeout(timer); console.error(e); process.exitCode = 2; });
     worker.on('message', async message => {

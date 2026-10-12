@@ -19,13 +19,13 @@ async function invoke(source,name,args=[]) {
 }
 test('frozen evaluator hashes match',async()=>verifyIntegrity());
 test('CLI rejects wrong answers and exports unscored failure',async()=>{
-  const result=await invoke('export function createSolver(){return {step(){return new Uint32Array()}}}','wrong');
+  const result=await invoke('export const apiVersion=2; export function createSolver(){return {step(){return {detached:new Uint32Array(),components:new Uint32Array()}}}}','wrong');
   assert.equal(result.code,1);assert.match(result.output,/INVALID/);
   const report=JSON.parse(await readFile(new URL('../artifacts/test-wrong.json',import.meta.url),'utf8'));
   assert.equal(report.score,null);assert.equal(report.status,'invalid');
 });
 test('CLI terminates infinite candidate',async()=>{
-  const result=await invoke('export function createSolver(){while(true){}}','hang',['--timeout','0.25']);
+  const result=await invoke('export const apiVersion=2; export function createSolver(){while(true){}}','hang',['--timeout','0.25']);
   assert.equal(result.code,2);assert.match(result.output,/TIMEOUT/);
 });
 test('CLI reports syntax errors',async()=>{

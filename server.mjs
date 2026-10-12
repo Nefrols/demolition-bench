@@ -9,7 +9,11 @@ const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; ch
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
-    const file = path.resolve(root, '.' + decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname));
+    let pathname = decodeURIComponent(url.pathname);
+    if (pathname === '/v1') pathname = '/v1/';
+    if (pathname.startsWith('/v1/')) pathname = '/legacy' + pathname;
+    if (pathname.endsWith('/')) pathname += 'index.html';
+    const file = path.resolve(root, '.' + pathname);
     if (!file.startsWith(root + path.sep)) { res.writeHead(403); return res.end(); }
     if (!(await stat(file)).isFile()) { res.writeHead(404); return res.end(); }
     const data = await readFile(file);
