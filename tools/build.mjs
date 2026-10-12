@@ -7,7 +7,7 @@ import { verifyIntegrity } from '../integrity.mjs';
 
 const root = await realpath(fileURLToPath(new URL('../', import.meta.url)));
 const output = path.resolve(root, 'dist');
-const runtime = ['index.html', 'style.css', 'app.js', 'reports.js', 'render.js', 'worker.js', 'engine/baseline.js', 'engine/oracle.js', 'engine/scenarios.js', 'engine/benchmark.js'];
+const runtime = ['index.html', 'style.css', 'app.js', 'render.js', 'worker.js', 'engine/baseline.js', 'engine/oracle.js', 'engine/scenarios.js', 'engine/benchmark.js'];
 const downloads = ['MODEL_PROMPT.md', 'README.md', 'DEPLOY.md'];
 await verifyIntegrity();
 

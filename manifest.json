@@ -1,19 +1,18 @@
 {
-  "version": "demolition-2.0.0",
+  "version": "demolition-2.1.0",
   "files": {
-    "index.html": "0cca3f5da9ead6d1661681f2de11433cfe400b5de93255c22ad32c467981660c",
-    "style.css": "096d55ef2681c8a8006f08796edbac8c0ba2209f2c8c49526c9d4dccbb8fe963",
-    "app.js": "bf5d4ba197b35e7ba95fc0537247db88482e1e91c1155fd3099d0f8ee6f65d8e",
-    "reports.js": "203a9bc5720d275d82f08bb214d9bf84b02d69270f8b795b201fa9326ce70f76",
-    "MODEL_PROMPT.md": "050a674e1c31a9cbde8fb544b09898f5fff9788259c8289b5d34c68570b22f71",
-    "render.js": "035c85da3b20ca1ba161c0f16332ca22a210712c6cadc51b1fc501c4d6902f96",
-    "worker.js": "4d56174fdc8fe94671db29f60e9ffb1664ab42bdcc459d1ed4fde6630ed82afc",
+    "index.html": "cc4bf321ce223209a2257b6f16b5dc3024f66cf47f717a54b6294ebea6a2e680",
+    "style.css": "b1a8835b1cf88ac2ef0b154212c5982923d92016cc7ed32be93d799290c8c39f",
+    "app.js": "60a0e74faedece4cdf60ded8d59bebf61490e6a3b1cdfca3ae18a3d72e1b587b",
+    "MODEL_PROMPT.md": "0d47757901a5a5edd979b94e2bd565ddd4b7c643ff9611301933b935bdbfda50",
+    "render.js": "8f555fa9023a8839e1b63224e4511bbd8ec0e003e4d7a6c1de919b4de28c21d9",
+    "worker.js": "8e5e0f6a2e97e16e5f16523439d3ddfbe13235ad7038be00fb855879268e8631",
     "server.mjs": "3447c3eccfed9c5b79e423edab6b421a681da353dc18c8ef47b04681eb33f8f0",
-    "cli.mjs": "af2ab8a68948de755c6a3a7ef3fefc1796c2f3d420e53080e9b81ae1c7d89b28",
+    "cli.mjs": "98777281350b5108dab4801dae310cecf9cac3baeb46901f5f4d3dd2008c1adf",
     "integrity.mjs": "2608a47356ab371509157e71cd4ffc51a2c4475fc23e3203b53c787a52f57048",
     "engine/baseline.js": "57bf95345c316828ce16338431d4ac99942f7ba2cc4173b4b14d6f93a679a3a1",
     "engine/oracle.js": "d63551f4731438dc7b2406df4dfbfe66fb7a0c06ce493307a560556c3d8f2ec4",
-    "engine/scenarios.js": "bfb2c503a91f01583a112c5e069e04f0fb78cba0daf36b92d367c4d8ad74723c",
-    "engine/benchmark.js": "bf74b3e7cd102c7f7677d3f439545206ceb0cf83942ec6ce7548631a0501edb1"
+    "engine/scenarios.js": "dcaa29ed1ae7cd40df1628bc80cedbda40c74f4433696ede2dee0de06ee12a00",
+    "engine/benchmark.js": "e17e10f014db20a70d00d8fdc7e8089cf0f006eae8838c3f7d4f526f9ac808f6"
   }
 }

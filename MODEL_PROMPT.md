@@ -35,7 +35,7 @@ Use a self-contained ES module for a modern browser Worker and Node.js 20+. No i
 
 ## Exact state and transaction semantics
 
-- Dimensions are integers in [1,256], with `nx*ny*nz <= 4194304`. ID is `x + nx * (z + nz * y)`. Coordinates start at zero; Y is vertical.
+- Dimensions are integers in [1,64], with `nx*ny*nz <= 32768`. ID is `x + nx * (z + nz * y)`. Coordinates start at zero; Y is vertical.
 - `solid` and `anchors` are `Uint8Array`s of grid size containing 0 or 1. Anchors initially mark occupied cells and may occur anywhere, not just at ground level. Initial floating components are allowed.
 - Input arrays are private mutable copies. Each instance is independent. Future transactions are not provided.
 - All four transaction fields are `Uint32Array`s of valid in-range IDs, and always present. They may be empty, contain duplicates, or refer to empty cells. Transaction arrays are also private copies, so you may mutate them.
@@ -73,14 +73,13 @@ This is discrete dynamic connectivity and component reduction, not a structural 
 
 Correctness is mandatory for any valid input, including unseen seeds, shapes, dimensions, and transaction sequences. Validation covers all returned IDs and every field of every component. Tests include cavities, thin paths, many independent fragments, alternative supports, absent supports, row boundaries, duplicate edits, overlapping phases, and initial floating structures. One wrong answer invalidates the run; there is no score for a fast but incorrect result.
 
-Performance workloads mix sparse and dense 3D structures, local damage and repair, anchor transfers, cuts, reconnection, complete collapse, reconstruction, and no-op transactions. Scales range from tens of thousands to roughly 2.3 million grid cells, across four families. Larger sizes and unseen inputs may be used within the contract. Workloads are online: solve each transaction before receiving the next.
+The browser benchmark uses one fixed, compact construction with 18,432 grid cells and 24 online transactions. It mixes cavities, alternative support paths, thin bridges, local damage and repair, anchor transfers, cuts, reconnection, collapse and reconstruction. There are no growing sizes or selectable workloads. Correctness checks use additional small shapes and mixed transactions. Compute answers from the inputs; do not identify or hard-code the fixed scenario.
 
-Measured cost includes `createSolver` plus all synchronous `step` calls, including allocation and preparation performed by your implementation. Input copies, oracle computation, validation, rendering, UI, and module import are excluded. Work outside the measured API is forbidden. Both implementations receive identical inputs, with warmup, fresh instances and alternating order. Smaller workloads use the same batch count for baseline and candidate to reduce timer quantization.
+Measured cost includes `createSolver` plus all synchronous `step` calls, including allocations. Input copies, oracle computation, validation, rendering, UI and module import are excluded. All input-dependent work must stay inside the measured API. Both implementations receive identical inputs, warm up, and run five series of four fresh instances each, alternating order. This count is fixed for all solutions and devices; slow candidates do not trigger extra work. The median average total time per instance determines the result.
 
-For each family/size, the evaluator compares median total runtime across repeated series. Geometric mean speedup across all workloads in a profile determines the score:
-
+`speedup = baseline time / candidate time`
 `score = 100 * log2(speedup)`
 
-Equal speed gives 0; twice as fast +100; four times as fast +200; twice as slow -100. There is no score cap. Initialization cost, efficient local updates, dense scans, memory access, and component reductions all matter. No particular optimization technique is required. Optimize overall measured performance while preserving the complete contract.
+Equal speed gives 0; twice as fast +100; four times as fast +200; twice as slow -100. There is no score cap. The complete browser run, including validation, has a 120-second wall-clock limit; timeout is unscored. Complexity comes from correct online updates and reductions, not a growing volume of input. Any correct synchronous algorithm is allowed. Efficient initialization, local updates, traversals, and memory access all matter.
 
 Return only the complete replacement `solver.js` in one JavaScript code block. This single response is your only submission and will be evaluated as delivered, without revisions.

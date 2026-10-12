@@ -11,7 +11,7 @@ test('static build contains working browser assets and verified hashes only', as
   await promisify(execFile)(process.execPath, ['tools/build.mjs'], { cwd: root, windowsHide: true });
   const output = new URL('../dist/', import.meta.url);
   const files = await readdir(output);
-  for (const name of ['v1', 'index.html', 'reports.js', 'app.js', 'render.js', 'worker.js', 'solver.js', 'style.css', 'manifest.json', 'engine', 'README.md', 'MODEL_PROMPT.md', 'DEPLOY.md', '.nojekyll']) assert.ok(files.includes(name), `Missing ${name}`);
+  for (const name of ['v1', 'index.html', 'app.js', 'render.js', 'worker.js', 'solver.js', 'style.css', 'manifest.json', 'engine', 'README.md', 'MODEL_PROMPT.md', 'DEPLOY.md', '.nojekyll']) assert.ok(files.includes(name), `Missing ${name}`);
   for (const name of ['node_modules', 'artifacts', 'server.mjs', 'cli.mjs', 'integrity.mjs', 'tests']) assert.ok(!files.includes(name), `Unexpected ${name}`);
   const manifest = JSON.parse(await readFile(new URL('manifest.json', output), 'utf8'));
   for (const [name, expected] of Object.entries(manifest.files)) {

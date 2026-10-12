@@ -150,12 +150,12 @@ export class Renderer {
     if (this.world) {
       const { nx, ny, nz } = this.world;
       // Fit the complete bounding sphere to the narrower half viewport.
-      const halfAngle=Math.atan(Math.tan(Math.PI/8)*Math.min(1,w/(2*h)));
+      const halfAngle=Math.atan(Math.tan(Math.PI/8)*Math.min(1,w/h));
       const distance = Math.hypot(nx,ny,nz)*.54/Math.sin(halfAngle), target = [0,(ny-1)*.5,0];
       const eye = [Math.sin(this.yaw)*Math.cos(this.pitch)*distance,target[1]+Math.sin(this.pitch)*distance,Math.cos(this.yaw)*Math.cos(this.pitch)*distance];
       gl.uniform3fv(this.uEye,eye);
-      for (let k = 0; k < 2; k++) {
-        const left = k ? Math.floor(w/2) : 0, width = k ? w-left : Math.floor(w/2);
+      for (let k = 1; k < 2; k++) {
+        const left = 0, width = w;
         gl.viewport(left,0,width,h); gl.uniformMatrix4fv(this.uVP,false,multiply(perspective(width/h),lookAt(eye,target)));
         gl.uniform1f(this.uGround,1); this.draw(this.ground); gl.uniform1f(this.uGround,0);
         const s = this.states[k]; this.draw(s.static);

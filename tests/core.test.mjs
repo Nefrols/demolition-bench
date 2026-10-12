@@ -3,9 +3,8 @@ import assert from 'node:assert/strict';
 import {createSolver as baseline} from '../engine/baseline.js';
 import {createSolver as candidate} from '../solver.js';
 import {referenceStep,cloneWorld,prepareScenario,checkResult} from '../engine/oracle.js';
-import {makeWorld,edgeCases,makeScenario,random,edit,FAMILIES} from '../engine/scenarios.js';
+import {makeWorld,edgeCases,makeScenario,random,edit,REPEATS,ROUNDS,RUN_LIMIT_MS} from '../engine/scenarios.js';
 import {runTrial,benchmark} from '../engine/benchmark.js';
-import {validReport,compatible} from '../reports.js';
 
 test('hand-checked reductions: pair, single voxel, hollow shell',()=>{
   const cases=[
@@ -32,8 +31,11 @@ test('component buffer grows beyond 256 fragments',()=>{
   const expected=referenceStep(cloneWorld(w),edit()),s=baseline(w);
   assert.equal(expected.components.length/12,512);assert.ok(checkResult(s.step(edit()),expected,4096).ok);
 });
-test('generators are deterministic and exercise bulk collapse',()=>{
-  for(const family of FAMILIES){const a=makeScenario(family,1234,'S',8);assert.deepEqual(a,makeScenario(family,1234,'S',8));assert.equal(a.events.length,28);const p=prepareScenario(a);runTrial(candidate,p);assert.ok(p.frames.some(f=>f.expected.detached.length>100));}
+test('fixed compact scenario stays within its budget and exercises collapse',()=>{
+  const a=makeScenario();assert.deepEqual(a,makeScenario());assert.equal(a.world.solid.length,18432);assert.equal(a.events.length,24);
+  const p=prepareScenario(a);runTrial(candidate,p);assert.ok(p.frames.some(f=>f.expected.detached.length>100));
+  assert.equal(RUN_LIMIT_MS,120000);assert.equal(REPEATS,5);assert.equal(ROUNDS,4);
+  for(const s of edgeCases(1))assert.ok(s.world.solid.length<=18432);
 });
 test('checker validates arbitrary order and every component field',()=>{
   const e=referenceStep(makeWorld(5,1,1,x=>x%2===0,()=>false),edit());
@@ -46,7 +48,7 @@ test('checker validates arbitrary order and every component field',()=>{
   assert.equal(checkResult({detached:new Uint32Array([1,2,4]),components:e.components},e,5).ok,false);
 });
 test('private mutable inputs cannot contaminate independent trials',()=>{
-  const p=prepareScenario(makeScenario('arcology',42,'S',2)),before=structuredClone(p);
+  const p=prepareScenario(makeScenario()),before=structuredClone(p);
   runTrial(baseline,p);runTrial(candidate,p);assert.deepEqual(p,before);
 });
 test('timers include factory and steps, exclude checking',()=>{
@@ -54,7 +56,7 @@ test('timers include factory and steps, exclude checking',()=>{
   let t=0;const r=runTrial(candidate,p,()=>++t);assert.equal(r.buildMs,1);assert.equal(r.queryMs,2);assert.equal(r.totalMs,3);
 });
 test('wrong solver is invalid with no speedup or score',async()=>{
-  const r=await benchmark(()=>({step:()=>({detached:new Uint32Array(),components:new Uint32Array()})}),{profile:'quick',repeats:3});assert.equal(r.status,'invalid');assert.equal(r.score,null);assert.equal(r.speedup,null);
+  const r=await benchmark(()=>({step:()=>({detached:new Uint32Array(),components:new Uint32Array()})}));assert.equal(r.status,'invalid');assert.equal(r.score,null);assert.equal(r.speedup,null);
 });
 test('random mixed transactions maintain correct persistent state',()=>{
   const rnd=random(76311);
@@ -64,8 +66,9 @@ test('random mixed transactions maintain correct persistent state',()=>{
     for(let i=0;i<80;i++){const e=edit({remove:ids(),add:ids(),anchorOff:ids(),anchorOn:ids()}),expected=referenceStep(w,e);assert.ok(checkResult(s.step(e),expected,w.solid.length).ok);}
   }
 });
-test('quick profile produces internally consistent portable reports',async()=>{
-  const r=await benchmark(candidate,{profile:'quick',repeats:3});r.candidate='baseline';r.environment={runtime:'test'};assert.equal(r.status,'valid');assert.equal(r.cases.length,8);assert.ok(validReport(r));assert.ok(compatible(r,structuredClone(r)));
-  for(const mutate of [r=>r.score=Infinity,r=>r.score+=1,r=>r.cases[0].candidate.totalMs=-1,r=>r.schema=1,r=>r.cases.push(r.cases[0])]){const bad=structuredClone(r);mutate(bad);assert.equal(validReport(bad),false);}
-  assert.equal(compatible(r,{...r,seed:1}),false);
+test('all candidates receive one fixed workload and repetition count',async()=>{
+  const r=await benchmark(candidate);assert.equal(r.status,'valid');assert.equal(r.cases.length,1);
+  assert.equal(r.repeats,5);assert.equal(r.cases[0].rounds,4);assert.equal(r.cases[0].steps,24);
+  assert.equal(r.score,100*Math.log2(r.speedup));assert.equal(r.cases[0].baseline.runs.length,5);
+  assert.ok(!('profile' in r));assert.ok(!('seed' in r));
 });

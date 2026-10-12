@@ -1,6 +1,6 @@
 import {createSolver as baseline} from './baseline.js';
 import {cloneWorld,cloneEdit,prepareScenario,checkResult} from './oracle.js';
-import {edgeCases,makeScenario,SUITE_VERSION,PROFILES,FAMILIES} from './scenarios.js';
+import {edgeCases,makeScenario,SUITE_VERSION,FIXED_SEED,REPEATS,ROUNDS} from './scenarios.js';
 
 export class ValidationError extends Error{constructor(message,detail={}){super(message);this.name='ValidationError';this.detail=detail;}}
 export function runTrial(factory,scenario,now=()=>performance.now()){
@@ -33,38 +33,29 @@ function summarize(runs){
 }
 const yieldTask=()=>new Promise(r=>setTimeout(r,0));
 export async function benchmark(candidate,options={},progress=()=>{}){
-  const seed=(options.seed??314159)>>>0,profile=options.profile||'standard',config=PROFILES[profile];
-  if(!config)throw new Error('Unknown benchmark profile');
-  const repeats=Math.max(3,Math.min(15,Math.floor(options.repeats||config.repeats)));
-  const report={schema:2,suite:SUITE_VERSION,profile,seed,repeats,status:'running',score:null,speedup:null,cases:[],correctness:{passed:0,total:0},createdAt:new Date().toISOString()};
+  const report={schema:3,suite:SUITE_VERSION,repeats:REPEATS,status:'running',score:null,speedup:null,cases:[],correctness:{passed:0,total:0}};
   try{
-    const checks=edgeCases(seed^0xA53C9E17);report.correctness.total=checks.length;
+    const checks=edgeCases(FIXED_SEED^0xA53C9E17);report.correctness.total=checks.length;
     for(const s of checks){const ready=prepareScenario(s);runTrial(baseline,ready);runTrial(candidate,ready);report.correctness.passed++;}
-    progress({stage:'correctness',text:`Корректность: ${checks.length}/${checks.length}`,completed:0,total:FAMILIES.length*config.scales.length});await yieldTask();
-    for(const family of FAMILIES)for(const scale of config.scales){
-      progress({stage:'prepare',text:`${family} / ${scale}: эталон и прогрев`,completed:report.cases.length,total:FAMILIES.length*config.scales.length});await yieldTask();
-      const scenario=prepareScenario(makeScenario(family,seed,scale,config.cycles));
-      const warm=runTrial(baseline,scenario);runTrial(candidate,scenario);
-      // Equal fresh-instance batching reduces timer quantization on small worlds.
-      const rounds=Math.max(1,Math.min(8,Math.ceil(40/Math.max(warm.totalMs,.01))));
-      const b=[],c=[];
-      for(let r=0;r<repeats;r++){
-        progress({stage:'measure',text:`${scenario.title} / ${scale}: серия ${r+1}/${repeats}`,completed:report.cases.length,total:FAMILIES.length*config.scales.length});await yieldTask();
-        if(r%2){c.push(sample(candidate,scenario,rounds));b.push(sample(baseline,scenario,rounds));}
-        else{b.push(sample(baseline,scenario,rounds));c.push(sample(candidate,scenario,rounds));}
-      }
-      const base=summarize(b),cand=summarize(c),speedup=base.totalMs/Math.max(cand.totalMs,.0001);
-      const row={id:scenario.id,family,title:scenario.title,scale,cells:scenario.world.solid.length,occupied:scenario.world.solid.reduce((a,v)=>a+v,0),steps:scenario.frames.length,rounds,baseline:base,candidate:cand,speedup};
-      report.cases.push(row);progress({stage:'case',text:`${scenario.title} / ${scale}: ${speedup.toFixed(2)}×`,row,completed:report.cases.length,total:FAMILIES.length*config.scales.length});
+    progress({text:'Проверка корректности пройдена. Прогрев…',fraction:.2});await yieldTask();
+    const scenario=prepareScenario(makeScenario());
+    for(let i=0;i<3;i++){runTrial(baseline,scenario);runTrial(candidate,scenario);}
+    const b=[],c=[];
+    for(let r=0;r<REPEATS;r++){
+      progress({text:`Измеряем код · ${r+1}/${REPEATS}`,fraction:.2+.7*r/REPEATS});await yieldTask();
+      if(r%2){c.push(sample(candidate,scenario,ROUNDS));b.push(sample(baseline,scenario,ROUNDS));}
+      else{b.push(sample(baseline,scenario,ROUNDS));c.push(sample(candidate,scenario,ROUNDS));}
     }
-    report.speedup=Math.exp(report.cases.reduce((s,c)=>s+Math.log(c.speedup),0)/report.cases.length);
+    const base=summarize(b),cand=summarize(c);
+    report.cases.push({id:scenario.id,title:scenario.title,cells:scenario.world.solid.length,steps:scenario.frames.length,rounds:ROUNDS,baseline:base,candidate:cand,speedup:base.totalMs/Math.max(cand.totalMs,.0001)});
+    report.speedup=report.cases[0].speedup;
     report.score=100*Math.log2(report.speedup);report.status='valid';
-    report.noisy=report.cases.some(c=>[c.baseline,c.candidate].some(t=>(t.maxMs-t.minMs)/Math.max(t.totalMs,.001)>.25));
+    report.noisy=[base,cand].some(t=>(t.maxMs-t.minMs)/Math.max(t.totalMs,.001)>.25);
   }catch(e){report.status='invalid';report.error={message:e.message,...e.detail};}
   return report;
 }
-export function replay(candidate,family,seed){
-  const s=prepareScenario(makeScenario(family,seed,'preview',4)),solver=candidate(cloneWorld(s.world));
+export function replay(candidate){
+  const s=prepareScenario(makeScenario()),solver=candidate(cloneWorld(s.world));
   if(!solver||typeof solver.step!=='function')throw new Error('createSolver() must return { step(edit) }');
   const frames=[];let valid=true,error=null;
   for(const f of s.frames){

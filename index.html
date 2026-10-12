@@ -1,40 +1,32 @@
-<!doctype html><html lang="ru"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Demolition Bench V2 — Code Performance Lab</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f3c176'/%3E%3Ctext x='6' y='24' font-size='24' font-family='sans-serif' font-weight='bold' fill='%2311181b'%3ED%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css"></head><body>
-<header><a class="brand" href="./"><b>D↘</b><div>DEMOLITION <span>BENCH</span><small>CODE PERFORMANCE LAB</small></div><i>V2</i></a><nav><a href="./v1/">Архив V1 ↗</a><a href="README.md" target="_blank">Методика ↗</a><a href="https://github.com/Nefrols/demolition-bench" target="_blank" rel="noreferrer">GitHub ↗</a></nav></header>
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Demolition Bench</title><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css"></head>
+<body>
+<header><a href="./" class="brand">demolition<span>bench</span><small>2.1</small></a><button id="copy-prompt" disabled>Скопировать промпт + solver</button></header>
 <main>
-<section class="hero"><div><div class="eyebrow">DYNAMIC CONNECTIVITY + COMPONENT REDUCTIONS</div><h1>Разрушить. Собрать. Ускорить.</h1><p>Единые данные и строгий ответ. Всё остальное — работа вашего алгоритма.</p></div><div class="hero-facts"><span><b>4</b> семейства</span><span><b>2,3M</b> ячеек в XL</span><span><b>1</b> попытка модели</span></div></section>
-<div class="lab-grid">
-<aside class="control-panel">
-  <section><div class="eyebrow">01 / ПОДГОТОВИТЬ МОДЕЛЬ</div><h2>Одна попытка. Готовый код.</h2><p>Скопируйте задание вместе со стартовым кодом в новую сессию модели.</p>
-    <button id="copy-prompt" class="primary wide">⧉ Скопировать задание + код</button><div class="button-pair"><button id="download-solver">↓ solver.js V2</button><button id="copy-prompt-only" class="quiet">Только промпт</button></div><small id="copy-status" aria-live="polite">Без браузера, поиска, запуска и исправлений.</small>
+  <section class="stage" aria-label="Сцена и результат">
+    <canvas id="scene" aria-label="3D-конструкция. Перетаскивайте мышью, чтобы вращать."></canvas>
+    <article id="result" aria-live="polite" aria-atomic="true">
+      <div class="eyebrow" id="result-label">РЕЗУЛЬТАТ</div>
+      <h1 id="headline">Вставьте решение</h1>
+      <p id="status">Проверка начнётся автоматически.</p>
+      <div id="metrics" hidden><div><span>Баллы</span><strong id="score">—</strong></div><div><span>База</span><strong id="baseline-time">—</strong></div><div><span>Решение</span><strong id="candidate-time">—</strong></div></div>
+      <progress id="progress" max="1" value="0" hidden></progress>
+      <button id="cancel" class="text-button" hidden>Остановить</button>
+    </article>
+    <div class="scene-footer"><button id="replay" class="text-button" disabled aria-label="Повторить анимацию">↻ Анимация</button><span id="scene-hint">Перетаскивайте сцену, чтобы вращать</span></div>
   </section>
-  <section><div class="eyebrow">02 / ЗАГРУЗИТЬ ОТВЕТ</div><label id="drop-zone" class="drop-zone" tabindex="0" role="button" for="candidate-input"><span>↑</span><strong>Перетащите solver.js</strong><small>или нажмите, чтобы выбрать файл</small></label><input id="candidate-input" type="file" accept=".js,.mjs" hidden>
-    <div class="module-meta"><span class="pill">API V2</span><span id="source-info">Исходная база</span></div><label class="field">Имя модели / решения<input id="model-name" maxlength="80" value="Baseline V2" placeholder="Например, Grok · one-shot"></label>
-  </section>
-  <section><div class="eyebrow">03 / ИЗМЕРИТЬ КОД</div><label class="field">Нагрузка<select id="profile"><option value="quick">Разведка · S / M</option><option value="standard" selected>Основной · S / M / L</option><option value="stress">Стресс · M / L / XL</option></select></label>
-    <div class="field-row"><label class="field">Seed<input id="seed" type="number" min="0" max="4294967295" value="314159"></label><button id="new-seed" class="small-button" title="Новый seed">↻</button><label class="field repeats">Серии<select id="repeats"><option>3</option><option selected>5</option><option>7</option><option>9</option></select></label></div>
-    <p id="profile-info" class="compact">12 нагрузок · 33 проверки · прогрев</p><button id="run" class="primary wide">Запустить бенчмарк ↗</button><small>Подготовка структур входит во время. Графика — нет.</small>
-  </section>
-</aside>
-<section class="workspace">
-  <div class="toolbar"><div class="segmented" aria-label="Семейство конструкции"><button data-scene="arcology" class="active">Аркология</button><button data-scene="viaduct">Транспортный узел</button><button data-scene="islands">Острова</button><button data-scene="labyrinth">Монолит</button></div><span class="preview-tag">ПРЕДПРОСМОТР</span></div>
-  <div class="view"><canvas id="scene" aria-label="Синхронный просмотр эталона и решения"></canvas><div class="view-title left"><span class="eyebrow">ORACLE</span><strong>Эталон</strong><small id="reference-count">—</small></div><div class="view-title right"><span class="eyebrow cyan">CANDIDATE</span><strong id="candidate-title">Baseline V2</strong><small id="candidate-count">—</small></div><div class="divider"></div><div class="view-footer"><span>Мышь — вращение обеих сцен</span><span class="legend"><i></i>Опоры <i></i>Построено <i></i>Ошибка</span></div>
-    <div id="measure-overlay" hidden><div class="spinner"></div><strong>Измеряем только код</strong><p id="progress">Подготовка…</p><progress id="job-progress" max="1" value="0"></progress><small>Отрисовка приостановлена</small><button id="cancel">Остановить</button></div>
-  </div>
-  <div class="playbar"><button id="play" class="icon-button" title="Воспроизведение">▶</button><button id="step">Шаг →</button><button id="reset" class="quiet">↺</button><div class="timeline"><span id="step-label">Готовим полигон…</span><input id="timeline" type="range" min="0" max="1" value="0" aria-label="Шаг сценария"></div><span id="match">—</span></div>
-  <div class="scene-note"><span id="preview-stats">Добавление и удаление блоков · перенос опор · точные характеристики фрагментов</span><span>В замере используются увеличенные конструкции</span></div>
-</section>
-</div>
-<section class="metrics-strip"><div><span>БАЛЛЫ РЕШЕНИЯ</span><strong id="score">—</strong><small id="score-note">База = 0 · каждые 2× = +100</small></div><div><span>СРЕДНЕЕ УСКОРЕНИЕ</span><strong id="speedup">—</strong><small>Геометрическое среднее всех нагрузок</small></div><div><span>КОРРЕКТНОСТЬ</span><strong id="correctness">—</strong><small id="result-identity">API V2 · целочисленный точный ответ</small></div><div class="export-actions"><button id="export" disabled>↓ Отчёт JSON</button><label class="file-link" for="report-input">↑ Импортировать отчёты</label><input id="report-input" type="file" accept=".json" multiple hidden></div></section>
-<section class="analysis-grid">
-  <article class="card chart-card"><div class="card-heading"><div><div class="eyebrow">КАК РАСТЁТ СТОИМОСТЬ АЛГОРИТМА</div><h2>Масштабирование</h2></div><select id="chart-family" aria-label="Семейство на графике"><option value="all">Все семейства</option><option value="arcology">Аркология</option><option value="viaduct">Транспортный узел</option><option value="islands">Острова</option><option value="labyrinth">Монолит</option></select></div><div id="chart" class="chart"><p>Запустите замер.<br><span>График покажет время на S, M, L и XL.</span></p></div><div id="chart-legend" class="chart-legend"></div><small>Ось Y — время, логарифмическая шкала. Ниже — быстрее.</small></article>
-  <article class="card results"><div class="card-heading"><div><div class="eyebrow">ПО КАЖДОМУ СЕМЕЙСТВУ И МАСШТАБУ</div><h2>Результаты вычислений</h2></div><span id="report-label" class="pill">Нет отчёта</span></div><p id="result-summary">Проверяются каждый блок, компоненты, площадь поверхности, суммы координат и границы.</p><div class="table-scroll"><table><thead><tr><th>Нагрузка</th><th>Ячеек</th><th>База</th><th>Решение</th><th>×</th></tr></thead><tbody id="result-rows"><tr><td colspan="5" class="empty">Время вычислений появится после запуска.</td></tr></tbody></table></div><small id="noise-note">Сравнивайте одинаковые профиль, seed и среду выполнения.</small></article>
-</section>
-<section class="card history-card"><div class="card-heading"><div><div class="eyebrow">ЛОКАЛЬНО НА ЭТОМ УСТРОЙСТВЕ</div><h2>История решений</h2></div><span class="muted">Хранится до 20 отчётов · исходники не сохраняются</span></div><div id="history" class="history"><p class="muted">После первого запуска здесь появится результат модели.</p></div></section>
-<div id="error" role="alert" hidden></div><div id="toast" role="status" hidden></div>
-<dialog id="copy-dialog"><h2>Задание для модели</h2><p>Доступ к буферу обмена ограничен браузером. Текст выделен — нажмите Ctrl+C.</p><textarea id="copy-text" readonly></textarea><button id="close-copy">Готово</button></dialog>
-<footer><span>V2: динамическая связность и характеристики компонентов · <a href="./v1/">результаты V1 проверяются отдельно ↗</a></span><span id="integrity">Проверяем целостность…</span></footer>
-</main><script type="module" src="app.js"></script></body></html>
+  <section class="editor"><label for="solver-code">Код решения</label><p>Вставьте ответ модели целиком — проверим сразу.</p><textarea id="solver-code" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-describedby="editor-note" placeholder="export const apiVersion = 2;\n\nexport function createSolver(world) {\n  // Вставьте готовое решение модели\n}" disabled></textarea><small id="editor-note">Код выполняется в вашем браузере.</small></section>
+</main>
+<button id="help" aria-haspopup="dialog">Help <span>?</span></button>
+<dialog id="help-dialog"><div class="dialog-heading"><h2>Как пройти тест</h2><button id="close-help" aria-label="Закрыть справку">×</button></div>
+<ol><li>Скопируйте промпт: стартовый solver уже внутри.</li><li>Передайте его модели в новой сессии. Одна попытка, без браузера, поиска, запуска кода и исправлений по результатам теста.</li><li>Вставьте ответ справа. Можно вместе с ограждением <code>```js</code>. Проверка и замер запускаются автоматически.</li></ol>
+<p>Задача — поддерживать связность конструкции при разрушении, восстановлении и переносе опор, точно рассчитывая отделившиеся фрагменты. Путь решения свободный.</p>
+<p>У всех решений один компактный полигон и одинаковая последовательность изменений. Размеры и число повторений фиксированы. Время зависит от кода и устройства. Весь прогон ограничен <strong>120 секундами</strong>: слишком медленное или зависшее решение останавливается без оценки.</p>
+<p>Сначала проверяем 33 небольших случая, затем каждый ответ в замере. Измеряется создание солвера и его шаги. Подготовка данных, проверка и графика во время замера исключены; вращение доступно до и после него.</p>
+<p><strong>0 баллов</strong> — скорость базы. Каждое удвоение ускорения даёт <strong>+100</strong>, замедление — отрицательные баллы. Верхней границы нет. Сравнивайте модели в одном браузере на одном устройстве. Небольшие различия могут быть шумом.</p>
+<p>Падение обломков — иллюстрация связности, без расчёта прочности и столкновений. Код и результаты не сохраняются. Результаты набора 2.1 не сравниваются с прежними версиями.</p>
+<p class="help-links"><a href="https://github.com/Nefrols/demolition-bench" target="_blank" rel="noreferrer">Исходники ↗</a><span id="integrity">Проверяем стенд…</span></p></dialog>
+<dialog id="copy-dialog"><h2>Полное задание</h2><p>Браузер ограничил доступ к буферу. Текст выделен — нажмите Ctrl+C.</p><textarea id="copy-text" readonly aria-label="Промпт со стартовым кодом"></textarea><button id="close-copy">Готово</button></dialog>
+<div id="toast" role="status" hidden></div>
+<script type="module" src="app.js"></script></body></html>
